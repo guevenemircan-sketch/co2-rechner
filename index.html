@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CO2-Kosten-Rechner Vermieter / Mieter</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F5C4A">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CO2-Rechner">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root { --acc:#1F5C4A; --acc-l:#E8F1EE; --line:#C8D3CF; --grey:#555; --warn:#FFF4E0; --bg:#F6F8F7; }
+  * { box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; margin:0; background:var(--bg); color:#222; font-size:14px; }
+  header { background:var(--acc); color:#fff; padding:16px 28px; }
+  header h1 { margin:0; font-size:22px; }
+  header p { margin:4px 0 0; opacity:.85; font-size:13px; }
+  main { display:grid; grid-template-columns: 380px 1fr; gap:20px; padding:20px 28px; max-width:1300px; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0,1fr); } }
+  main > section { min-width:0; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:16px; }
+  h2 { font-size:15px; color:var(--acc); margin:0 0 10px; }
+  label { display:block; font-size:12.5px; color:var(--grey); margin:10px 0 3px; }
+  input, select { width:100%; padding:7px 9px; font-size:14px; border:1px solid var(--line); border-radius:5px; }
+  input:focus, select:focus { outline:2px solid var(--acc); border-color:var(--acc); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .hint { font-size:11.5px; color:var(--grey); margin-top:3px; }
+  .radio { display:flex; gap:14px; margin-top:4px; }
+  .radio label { display:flex; align-items:center; gap:5px; margin:0; color:#222; font-size:13px; }
+  .radio input { width:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { background:var(--acc); color:#fff; text-align:left; padding:6px 8px; font-weight:bold; }
+  td { padding:6px 8px; border-bottom:1px solid var(--line); }
+  td.n, th.n { text-align:right; }
+  tr.sum td { font-weight:bold; background:var(--acc-l); }
+  tr.hl td { background:var(--acc-l); font-weight:bold; }
+  .kpis { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:14px; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns:repeat(2, 1fr); } }
+  .kpi { background:var(--acc-l); border-radius:6px; padding:10px 12px; }
+  .kpi .v { font-size:20px; font-weight:bold; color:var(--acc); }
+  .kpi .l { font-size:11.5px; color:var(--grey); }
+  .note { background:var(--warn); border:1px solid #EBD9B5; border-radius:6px; padding:9px 12px; font-size:12.5px; margin-top:10px; }
+  .info { font-size:12.5px; color:var(--grey); margin-top:8px; line-height:1.45; }
+  .bar { display:flex; height:22px; border-radius:4px; overflow:hidden; margin:6px 0 2px; font-size:11.5px; color:#fff; }
+  .bar div { display:flex; align-items:center; justify-content:center; white-space:nowrap; }
+  .b-v { background:var(--acc); } .b-m { background:#8DB3A6; }
+  .hidden { display:none; }
+  .card { overflow-x:auto; }
+  @media (max-width: 600px) {
+    header, main, footer { padding-left:12px; padding-right:12px; }
+    header h1 { font-size:18px; }
+    #reset { float:none !important; margin-bottom:8px; }
+    .row { grid-template-columns:1fr; gap:0; }
+    table { font-size:12px; } th, td { padding:5px 5px; }
+    input, select { font-size:16px; }
+  }
+  footer { padding:0 28px 24px; font-size:11.5px; color:var(--grey); max-width:1300px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CO<sub>2</sub>-Kosten-Rechner: Vermieter / Mieter</h1>
+  <button id="reset" type="button" style="float:right;background:#fff;color:#1F5C4A;border:0;border-radius:5px;padding:6px 10px;font-size:13px;cursor:pointer">Zurücksetzen</button>
+  <p>Aufteilung nach CO2KostAufG (Stufenmodell) und Gebäudemodernisierungsgesetz (neue Gas-/Ölheizungen ab 29.07.2026) · Stand 16.11.2026</p>
+</header>
+
+<main>
+<section>
+  <div class="card">
+    <h2>1 · Wohnung &amp; Verbrauch</h2>
+    <label>Wohnfläche (m²)</label>
+    <input id="flaeche" type="number" min="1" step="0.1" value="90">
+
+    <label>Verbrauch ermitteln aus</label>
+    <div class="radio">
+      <label><input type="radio" name="quelle" value="rechnung" checked> Rechnung (kWh)</label>
+      <label><input type="radio" name="quelle" value="ausweis"> Energieausweis (kWh/m²)</label>
+    </div>
+
+    <div id="box-rechnung">
+      <div class="row">
+        <div>
+          <label>Verbrauch (kWh)</label>
+          <input id="kwh" type="number" min="0" step="1" value="21540">
+        </div>
+        <div>
+          <label>Abrechnungszeitraum (Monate)</label>
+          <input id="monate" type="number" min="1" max="36" step="1" value="12">
+        </div>
+      </div>
+      <div class="hint">Steht auf der Gasrechnung bzw. Heizkostenabrechnung. Wird auf 12 Monate umgerechnet.</div>
+    </div>
+
+    <div id="box-ausweis" class="hidden">
+      <label>Energiekennwert laut Ausweis (kWh pro m² und Jahr)</label>
+      <input id="kwhm2" type="number" min="0" step="1" value="240">
+      <div class="hint">Nur Schätzung: Der Ausweis rechnet mit der Gebäudenutzfläche, die Aufteilung mit der Wohnfläche.</div>
+    </div>
+
+    <label>Anzahl gleichartiger Wohnungen (für Hochrechnung aufs Haus)</label>
+    <input id="anzahl" type="number" min="1" step="1" value="1">
+  </div>
+
+  <div class="card">
+    <h2>2 · Heizung</h2>
+    <label>Brennstoff</label>
+    <select id="brennstoff">
+      <option value="gas" selected>Erdgas (0,1814 kg CO2/kWh)</option>
+      <option value="oel">Heizöl (0,266 kg CO2/kWh)</option>
+      <option value="lpg">Flüssiggas (0,239 kg CO2/kWh)</option>
+      <option value="wp">Wärmepumpe (Strom) – keine Aufteilung</option>
+      <option value="bio">Pellets / Holz – keine Aufteilung</option>
+    </select>
+
+    <label>Einbau der Heizung</label>
+    <select id="einbau">
+      <option value="bestand" selected>Bestand – vor dem 29.07.2026 eingebaut</option>
+      <option value="neu">Neu – ab dem 29.07.2026 eingebaut (Bio-Treppe, 50 : 50)</option>
+    </select>
+
+    <label>Gebäudeart</label>
+    <select id="nutzung">
+      <option value="wohnen" selected>Wohngebäude</option>
+      <option value="gewerbe">Gewerbe / Nichtwohngebäude (pauschal 50 : 50)</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h2>3 · Jahr &amp; Preise</h2>
+    <div class="row">
+      <div>
+        <label>Abrechnungsjahr</label>
+        <select id="jahr"></select>
+      </div>
+      <div>
+        <label>CO2-Preis (€ pro Tonne)</label>
+        <input id="preis" type="number" min="0" step="1" value="60">
+      </div>
+    </div>
+    <div class="hint">Bekannt: 2025 = 55 €, 2026 = 55–65 € (Rechnungsbeispiel 60 €), 2027 voraussichtlich stabil. Ab 2028 Marktpreis – Szenarien 80 / 130 / 200 €.</div>
+
+    <div id="box-neu" class="hidden">
+      <div class="row">
+        <div>
+          <label>Gasnetzentgelt (ct/kWh)</label>
+          <input id="netz" type="number" min="0" step="0.1" value="1.8">
+        </div>
+        <div>
+          <label>Bio-Mehrpreis (ct/kWh)</label>
+          <input id="biomehr" type="number" min="0" step="0.1" value="6">
+        </div>
+      </div>
+      <div class="hint">Netzentgelt: auf der Gasrechnung ausgewiesen (typisch 1,5–2,5 ct). Bio-Mehrpreis: Aufpreis von Biogas ggü. Erdgas – Annahme, bitte an Tarif anpassen.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="card">
+    <h2>Ergebnis</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="k-co2">–</div><div class="l">kg CO2 pro Jahr (fossil)</div></div>
+      <div class="kpi"><div class="v" id="k-m2">–</div><div class="l">kg CO2 pro m² und Jahr</div></div>
+      <div class="kpi"><div class="v" id="k-regel">–</div><div class="l" id="k-regel-l">Regel</div></div>
+      <div class="kpi"><div class="v" id="k-verm">–</div><div class="l">Vermieter zahlt pro Jahr (Wohnung)</div></div>
+    </div>
+
+    <div id="bar" class="bar"></div>
+    <div class="info" id="bar-l"></div>
+
+    <table style="margin-top:12px">
+      <thead><tr><th>Kostenteil</th><th>Regel</th><th class="n">Gesamt</th><th class="n">Vermieter</th><th class="n">Mieter</th></tr></thead>
+      <tbody id="t-teile"></tbody>
+    </table>
+    <div class="info" id="haus"></div>
+    <div id="hinweise"></div>
+  </div>
+
+  <div class="card">
+    <h2>CO2-Preis-Szenarien (gleiches Jahr, gleicher Verbrauch)</h2>
+    <table>
+      <thead><tr><th>CO2-Preis</th><th class="n">Vermieter / Wohnung</th><th class="n">Mieter / Wohnung</th><th class="n">Vermieter / Haus</th></tr></thead>
+      <tbody id="t-szen"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Entwicklung bis 2040 (gleicher Verbrauch)</h2>
+    <div class="row" style="max-width:520px">
+      <div><label>CO2-Preis 2030 (€/t)</label><input id="p2030" type="number" min="0" step="1" value="130"></div>
+      <div><label>CO2-Preis 2040 (€/t)</label><input id="p2040" type="number" min="0" step="1" value="200"></div>
+    </div>
+    <div class="hint">Bis 2027 bekannte Preise, dazwischen linear interpoliert. Nutzt die Einstellungen links (Heizung, Netzentgelt, Bio-Mehrpreis).</div>
+    <table style="margin-top:10px">
+      <thead><tr><th>Jahr</th><th class="n">CO2-Preis</th><th class="n">Bio-Anteil</th><th class="n">Vermieter / Wohnung</th><th class="n">Vermieter / Haus</th><th class="n">kumuliert / Haus</th></tr></thead>
+      <tbody id="t-verlauf"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Stufenmodell (Bestandsheizung, Wohngebäude)</h2>
+    <table>
+      <thead><tr><th>Stufe</th><th>kg CO2 pro m² und Jahr</th><th class="n">Vermieter</th><th class="n">Mieter</th></tr></thead>
+      <tbody id="t-stufen"></tbody>
+    </table>
+  </div>
+</section>
+</main>
+
+<footer>
+  Annahmen &amp; Grenzen: Emissionsfaktoren gerundet (Gas wie auf Versorgerrechnungen je kWh Brennwert). Neue Heizung: Stufenmodell bis Ende 2027, ab 2028 CO2 und Netzentgelte 50 : 50, ab 2029 Bio-Mehrkosten 50 : 50 bis max. 30 % Brennstoffanteil
+  (§§ 5a–5d CO2KostAufG laut Fachportalen). Bio-Treppe: 2029 = 10 %, 2030 = 15 %, 2035 = 30 %, 2040 = 60 %. Grüngasquote der Lieferanten (ab 2028, 1 %) bei Bestandsheizungen nicht berücksichtigt.
+  Ausnahmen (Denkmal-/Milieuschutz, Härtefall § 5d, Notfall-Austausch § 5a Abs. 4) nicht abgebildet. Keine Rechts- oder Steuerberatung.
+</footer>
+
+<script>
+// ===== LOGIC START =====
+const STUFEN = [[12,0],[17,10],[22,20],[27,30],[32,40],[37,50],[42,60],[47,70],[52,80],[Infinity,95]];
+const FAKTOR = { gas:0.1814, oel:0.266, lpg:0.239, wp:0, bio:0 };
+const PREIS_BEKANNT = { 2023:30, 2024:45, 2025:55, 2026:60, 2027:60 };
+
+function stufe(kgm2) {
+  for (let i = 0; i < STUFEN.length; i++) if (kgm2 < STUFEN[i][0]) return { nr:i+1, verm:STUFEN[i][1] };
+}
+function bioAnteil(jahr) {
+  if (jahr >= 2040) return 0.60;
+  if (jahr >= 2035) return 0.30;
+  if (jahr >= 2030) return 0.15;
+  if (jahr >= 2029) return 0.10;
+  return 0;
+}
+// in: {flaeche, kwhJahr, brennstoff, einbau, nutzung, jahr, preis, netzCt, bioMehrCt}
+function berechne(x) {
+  const fossil = FAKTOR[x.brennstoff] > 0;
+  const neu = x.einbau === 'neu' && fossil && x.brennstoff !== 'wp';
+  const bio = neu ? bioAnteil(x.jahr) : 0;
+  const co2kg = x.kwhJahr * (1 - bio) * FAKTOR[x.brennstoff];
+  const kgm2 = x.flaeche > 0 ? co2kg / x.flaeche : 0;
+  const co2Kosten = co2kg / 1000 * x.preis;
+  const teile = [];
+  let regel, vermPct;
+
+  if (!fossil) {
+    regel = 'keine'; vermPct = 0;
+    teile.push({ name:'CO2-Kosten', regel:'nicht betroffen', gesamt:0, verm:0 });
+  } else if (x.nutzung === 'gewerbe') {
+    regel = '50 : 50'; vermPct = 50;
+    teile.push({ name:'CO2-Kosten', regel:'Gewerbe pauschal 50 %', gesamt:co2Kosten, verm:co2Kosten * 0.5 });
+  } else if (neu && x.jahr >= 2028) {
+    regel = '50 : 50'; vermPct = 50;
+    teile.push({ name:'CO2-Kosten', regel:'neue Heizung: 50 %', gesamt:co2Kosten, verm:co2Kosten * 0.5 });
+  } else {
+    const s = stufe(kgm2);
+    regel = 'Stufe ' + s.nr; vermPct = s.verm;
+    teile.push({ name:'CO2-Kosten', regel:'Stufenmodell: ' + s.verm + ' %', gesamt:co2Kosten, verm:co2Kosten * s.verm / 100 });
+  }
+
+  if (neu && x.nutzung !== 'gewerbe') {
+    const netz = x.kwhJahr * x.netzCt / 100;
+    const netzV = x.jahr >= 2028 ? netz * 0.5 : 0;
+    teile.push({ name:'Gasnetzentgelte', regel: x.jahr >= 2028 ? '50 % (ab 2028)' : 'Mieter allein (bis 2027)', gesamt:netz, verm:netzV });
+    const bioK = x.kwhJahr * bio * x.bioMehrCt / 100;
+    const bioV = (x.jahr >= 2029 && bio > 0) ? x.kwhJahr * Math.min(bio, 0.30) * x.bioMehrCt / 100 * 0.5 : 0;
+    teile.push({ name:'Bio-Mehrkosten (' + Math.round(bio * 100) + ' % Bio)', regel: bio > 0.30 ? '50 % auf max. 30 % Anteil' : (bio > 0 ? '50 %' : 'noch keine Pflicht'), gesamt:bioK, verm:bioV });
+  }
+  const gesamt = teile.reduce((a, t) => a + t.gesamt, 0);
+  const verm = teile.reduce((a, t) => a + t.verm, 0);
+  return { co2kg, kgm2, co2Kosten, regel, vermPct, teile, gesamt, verm, mieter: gesamt - verm, bio, neu, fossil };
+}
+function preisVerlauf(jahr, p2030, p2040) {
+  if (PREIS_BEKANNT[jahr] !== undefined) return PREIS_BEKANNT[jahr];
+  if (jahr <= 2030) return 60 + (p2030 - 60) * (jahr - 2027) / 3;
+  if (jahr <= 2040) return p2030 + (p2040 - p2030) * (jahr - 2030) / 10;
+  return p2040;
+}
+// ===== LOGIC END =====
+
+const $ = id => document.getElementById(id);
+const eur = v => v.toLocaleString('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:0 });
+const num = (v, d = 0) => v.toLocaleString('de-DE', { minimumFractionDigits:d, maximumFractionDigits:d });
+
+const jahrSel = $('jahr');
+for (let j = 2023; j <= 2045; j++) { const o = document.createElement('option'); o.value = j; o.textContent = j; if (j === 2026) o.selected = true; jahrSel.appendChild(o); }
+
+$('t-stufen').innerHTML = STUFEN.map((s, i) => {
+  const von = i === 0 ? 0 : STUFEN[i-1][0];
+  const txt = i === 0 ? 'unter 12' : (s[0] === Infinity ? '52 und mehr' : von + ' bis unter ' + s[0]);
+  return `<tr id="st${i+1}"><td>${i+1}</td><td>${txt}</td><td class="n">${s[1]} %</td><td class="n">${100 - s[1]} %</td></tr>`;
+}).join('');
+
+function eingaben() {
+  const flaeche = +$('flaeche').value || 0;
+  const quelle = document.querySelector('input[name=quelle]:checked').value;
+  const kwhJahr = quelle === 'rechnung'
+    ? (+$('kwh').value || 0) * 12 / Math.max(1, +$('monate').value || 12)
+    : (+$('kwhm2').value || 0) * flaeche;
+  return {
+    flaeche, kwhJahr, quelle,
+    brennstoff: $('brennstoff').value, einbau: $('einbau').value, nutzung: $('nutzung').value,
+    jahr: +$('jahr').value, preis: +$('preis').value || 0,
+    netzCt: +$('netz').value || 0, bioMehrCt: +$('biomehr').value || 0,
+    anzahl: Math.max(1, +$('anzahl').value || 1)
+  };
+}
+
+function render() {
+  const x = eingaben();
+  $('box-rechnung').classList.toggle('hidden', x.quelle !== 'rechnung');
+  $('box-ausweis').classList.toggle('hidden', x.quelle !== 'ausweis');
+  $('box-neu').classList.toggle('hidden', !(x.einbau === 'neu' && ['gas','oel','lpg'].includes(x.brennstoff)));
+
+  const r = berechne(x);
+  $('k-co2').textContent = num(r.co2kg);
+  $('k-m2').textContent = num(r.kgm2, 1);
+  $('k-regel').textContent = r.regel;
+  $('k-regel-l').textContent = r.fossil ? 'Vermieteranteil CO2: ' + r.vermPct + ' %' : 'kein fossiler Brennstoff';
+  $('k-verm').textContent = eur(r.verm);
+
+  const vp = r.gesamt > 0 ? r.verm / r.gesamt * 100 : 0;
+  $('bar').innerHTML = r.gesamt > 0
+    ? `<div class="b-v" style="width:${vp}%">${vp >= 12 ? 'Vermieter ' + num(vp) + ' %' : ''}</div><div class="b-m" style="width:${100 - vp}%">${100 - vp >= 12 ? 'Mieter ' + num(100 - vp) + ' %' : ''}</div>`
+    : '';
+  $('bar-l').textContent = r.gesamt > 0 ? `Von ${eur(r.gesamt)} aufteilbaren Kosten trägt der Vermieter ${eur(r.verm)}, der Mieter ${eur(r.mieter)}. (Der eigentliche Brennstoff zahlt immer der Mieter.)` : '';
+
+  $('t-teile').innerHTML = r.teile.map(t =>
+    `<tr><td>${t.name}</td><td>${t.regel}</td><td class="n">${eur(t.gesamt)}</td><td class="n">${eur(t.verm)}</td><td class="n">${eur(t.gesamt - t.verm)}</td></tr>`).join('')
+    + `<tr class="sum"><td>Summe pro Wohnung</td><td></td><td class="n">${eur(r.gesamt)}</td><td class="n">${eur(r.verm)}</td><td class="n">${eur(r.mieter)}</td></tr>`;
+
+  $('haus').textContent = x.anzahl > 1 ? `Hochgerechnet auf ${x.anzahl} Wohnungen: Vermieter ${eur(r.verm * x.anzahl)} pro Jahr, Mieter gesamt ${eur(r.mieter * x.anzahl)}.` : '';
+
+  const h = [];
+  if (x.quelle === 'ausweis') h.push('Verbrauch aus dem Energieausweis geschätzt – für die echte Aufteilung zählt der tatsächliche Verbrauch laut Abrechnung.');
+  if (r.neu && x.jahr < 2028 && x.nutzung !== 'gewerbe') h.push('Neue Heizung: Die 50 : 50-Teilung gilt erst ab 01.01.2028 – bis dahin Stufenmodell.');
+  if (r.neu && r.bio > 0.30) h.push('Ab 2040 liegt der Bio-Anteil bei 60 %; der Vermieter trägt die Hälfte der Mehrkosten nur für 30 % des Brennstoffs.');
+  if (!r.fossil) h.push('Wärmepumpe / Pellets fallen nicht unter das CO2-Kostenaufteilungsgesetz – der Vermieter zahlt 0 €. Beim Strom steckt der CO2-Preis im Strompreis, den der Mieter zahlt.');
+  if (x.einbau === 'neu' && !r.fossil) h.push('Die Bio-Treppe betrifft nur neue Gas-, Öl- und Flüssiggasheizungen.');
+  $('hinweise').innerHTML = h.map(t => `<div class="note">${t}</div>`).join('');
+
+  STUFEN.forEach((_, i) => $('st' + (i+1)).classList.remove('hl'));
+  if (r.fossil && r.regel.startsWith('Stufe')) $('st' + r.regel.split(' ')[1]).classList.add('hl');
+
+  $('t-szen').innerHTML = [60, 80, 130, 200].map(p => {
+    const s = berechne({ ...x, preis:p });
+    return `<tr${p === x.preis ? ' class="hl"' : ''}><td>${p} €/t</td><td class="n">${eur(s.verm)}</td><td class="n">${eur(s.mieter)}</td><td class="n">${eur(s.verm * x.anzahl)}</td></tr>`;
+  }).join('');
+
+  const p2030 = +$('p2030').value || 0, p2040 = +$('p2040').value || 0;
+  let kum = 0; const rows = [];
+  for (let j = 2026; j <= 2040; j++) {
+    const p = preisVerlauf(j, p2030, p2040);
+    const s = berechne({ ...x, jahr:j, preis:p });
+    kum += s.verm * x.anzahl;
+    rows.push(`<tr${j === x.jahr ? ' class="hl"' : ''}><td>${j}</td><td class="n">${num(p)} €</td><td class="n">${s.neu ? Math.round(s.bio * 100) + ' %' : '–'}</td><td class="n">${eur(s.verm)}</td><td class="n">${eur(s.verm * x.anzahl)}</td><td class="n">${eur(kum)}</td></tr>`);
+  }
+  $('t-verlauf').innerHTML = rows.join('');
+}
+
+// ---- Eingaben merken (nur auf diesem Gerät) ----
+const KEY = 'co2rechner-eingaben-v1';
+const FELDER = ['flaeche','kwh','monate','kwhm2','anzahl','brennstoff','einbau','nutzung','jahr','preis','netz','biomehr','p2030','p2040'];
+function speichern() {
+  try {
+    const d = {}; FELDER.forEach(id => d[id] = $(id).value);
+    d.quelle = document.querySelector('input[name=quelle]:checked').value;
+    localStorage.setItem(KEY, JSON.stringify(d));
+  } catch (e) {}
+}
+function laden() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d) return;
+    FELDER.forEach(id => { if (d[id] !== undefined) $(id).value = d[id]; });
+    const r = document.querySelector('input[name=quelle][value="' + d.quelle + '"]'); if (r) r.checked = true;
+  } catch (e) {}
+}
+$('reset').addEventListener('click', () => { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); });
+laden();
+document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', () => { render(); speichern(); }));
+document.querySelectorAll('input, select').forEach(el => el.addEventListener('change', () => { render(); speichern(); }));
+$('jahr').addEventListener('change', () => {
+  const j = +$('jahr').value;
+  if (PREIS_BEKANNT[j] !== undefined) { $('preis').value = PREIS_BEKANNT[j]; render(); speichern(); }
+});
+render();
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
